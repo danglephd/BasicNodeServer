@@ -87,7 +87,7 @@ app.put('/issues/:id', (req, res) => {
   const { id } = req.params;
   const { status: issue_state } = req.body;
   if (!issue_state) {
-    res.status(400).send('Status are required');
+    res.status(400).send('Status is required');
   } else {
     const sql = 'UPDATE ISSUE SET test_state = ? WHERE id = ?';
     db.run(sql, [issue_state, id], function(err) {
