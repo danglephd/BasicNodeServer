@@ -85,19 +85,19 @@ app.post('/issues', (req, res) => {
 // PUT update issue by ID
 app.put('/issues/:id', (req, res) => {
   const { id } = req.params;
-  const { name, price } = req.body;
-  if (!name || !price) {
-    res.status(400).send('Name and price are required');
+  const { status: issue_state } = req.body;
+  if (!issue_state) {
+    res.status(400).send('Status are required');
   } else {
-    const sql = 'UPDATE ISSUE SET name = ?, price = ? WHERE id = ?';
-    db.run(sql, [name, price, id], function(err) {
+    const sql = 'UPDATE ISSUE SET test_state = ? WHERE id = ?';
+    db.run(sql, [issue_state, id], function(err) {
       if (err) {
         console.error(err.message);
         res.status(500).send('Internal server error');
       } else if (this.changes === 0) {
         res.status(404).send('Issue not found');
       } else {
-        res.status(200).send({ id, name, price });
+        res.status(200).send({ id, status: issue_state });
       }
     });
   }
