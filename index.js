@@ -13,6 +13,13 @@ const db = new sqlite3.Database('./database/gitlab_issue.db', (err) => {
 
 app.use(express.json());
 
+// Welcome
+app.get('/', (req, res) => {
+  res.statusCode = 200;
+  res.setHeader('Content-Type', 'text/plain');
+  res.end('Hello, World!\n');  
+});
+
 // GET all issues
 app.get('/issues', (req, res) => {
   db.all('SELECT * FROM ISSUE', (err, rows) => {
@@ -25,7 +32,22 @@ app.get('/issues', (req, res) => {
   });
 });
 
-// GET single product by ID
+// GET issues by issue number
+app.get('/issues/:issue', (req, res) => {
+  const { issue } = req.params;
+  db.get('SELECT * FROM ISSUE WHERE issue = ?', [issue], (err, row) => {
+    if (err) {
+      console.error(err.message);
+      res.status(500).send('Internal server error');
+    } else if (!row) {
+      res.status(404).send('Issue not found');
+    } else {
+      res.send(row);
+    }
+  });
+});
+
+// GET single issue by ID
 app.get('/issues/:id', (req, res) => {
   const { id } = req.params;
   db.get('SELECT * FROM ISSUE WHERE id = ?', [id], (err, row) => {
@@ -33,14 +55,14 @@ app.get('/issues/:id', (req, res) => {
       console.error(err.message);
       res.status(500).send('Internal server error');
     } else if (!row) {
-      res.status(404).send('Product not found');
+      res.status(404).send('Issue not found');
     } else {
       res.send(row);
     }
   });
 });
 
-// POST new product
+// POST new issue
 app.post('/issues', (req, res) => {
   const { name, price } = req.body;
   if (!name || !price) {
@@ -59,7 +81,7 @@ app.post('/issues', (req, res) => {
   }
 });
 
-// PUT update product by ID
+// PUT update issue by ID
 app.put('/issues/:id', (req, res) => {
   const { id } = req.params;
   const { name, price } = req.body;
@@ -72,7 +94,7 @@ app.put('/issues/:id', (req, res) => {
         console.error(err.message);
         res.status(500).send('Internal server error');
       } else if (this.changes === 0) {
-        res.status(404).send('Product not found');
+        res.status(404).send('Issue not found');
       } else {
         res.status(200).send({ id, name, price });
       }
@@ -80,7 +102,7 @@ app.put('/issues/:id', (req, res) => {
   }
 });
 
-// DELETE product by ID
+// DELETE issue by ID
 app.delete('/issues/:id', (req, res) => {
   const { id } = req.params;
   db.run('DELETE FROM ISSUE WHERE id = ?', [id], function(err) {
@@ -88,7 +110,7 @@ app.delete('/issues/:id', (req, res) => {
       console.error(err.message);
       res.status(500).send('Internal server error');
     } else if (this.changes === 0) {
-      res.status(404).send('Product not found');
+      res.status(404).send('Issue not found');
     } else {
       res.status(204).send();
     }
