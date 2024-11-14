@@ -1,10 +1,11 @@
 const express = require('express');
 const sqlite3 = require('sqlite3').verbose();
+require('dotenv').config()
 
 const app = express();
-const port = process.env.PORT || 3000;
+const port = process.env.server_PORT || 3000;
 
-const db = new sqlite3.Database('./database/gitlab_issue.db', (err) => {
+const db = new sqlite3.Database(process.env.dastabase_host, (err) => {
   if (err) {
     console.error(err.message);
   }
