@@ -35,7 +35,8 @@ app.get('/issues', (req, res) => {
 // GET issues by issue number
 app.get('/issues/:issue', (req, res) => {
   const { issue } = req.params;
-  db.get('SELECT * FROM ISSUE WHERE issue = ?', [issue], (err, row) => {
+  
+  db.all('SELECT * FROM ISSUE WHERE issue_number = ?', [issue], (err, row) => {
     if (err) {
       console.error(err.message);
       res.status(500).send('Internal server error');
