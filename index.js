@@ -1,8 +1,11 @@
 const express = require('express');
 const sqlite3 = require('sqlite3').verbose();
 require('dotenv').config()
+const cors = require('cors')
 
 const app = express();
+app.use(cors())
+
 const port = process.env.server_PORT || 3000;
 
 const db = new sqlite3.Database(process.env.dastabase_host, (err) => {
