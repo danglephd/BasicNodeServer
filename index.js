@@ -7,8 +7,9 @@ const app = express();
 app.use(cors())
 
 const port = process.env.server_PORT || 3000;
+const host = process.env.dastabase_host || './database/gitlab_issue.db';
 
-const db = new sqlite3.Database(process.env.dastabase_host, (err) => {
+const db = new sqlite3.Database(host, (err) => {
   if (err) {
     console.error(err.message);
   }
