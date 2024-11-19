@@ -7,11 +7,13 @@ const app = express();
 app.use(cors())
 
 const port = process.env.server_PORT || 3000;
-const host = process.env.dastabase_host || './database/gitlab_issue.db';
+const db_host = process.env.dastabase_host || './database/gitlab_issue.db';
 
-const db = new sqlite3.Database(host, (err) => {
+const db = new sqlite3.Database(db_host, (err) => {
   if (err) {
     console.error(err.message);
+    console.error(db_host);
+    return
   }
   console.log('Connected to the gitlab_issue database.');
 });
@@ -22,7 +24,9 @@ app.use(express.json());
 app.get('/', (req, res) => {
   res.statusCode = 200;
   res.setHeader('Content-Type', 'text/plain');
-  res.end('Hello, World!\n');  
+  res.end(`Hello, World!\n
+  ${db_host}
+  `);  
 });
 
 // GET all issues
