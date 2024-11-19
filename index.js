@@ -7,7 +7,7 @@ const app = express();
 app.use(cors())
 
 const port = process.env.server_PORT || 3000;
-const db_host = process.env.dastabase_host || './database/gitlab_issue.db';
+const db_host = process.env.database_host || './database/gitlab_issue.db';
 
 const db = new sqlite3.Database(db_host, (err) => {
   if (err) {
@@ -15,7 +15,7 @@ const db = new sqlite3.Database(db_host, (err) => {
     console.error(db_host);
     return
   }
-  console.log('Connected to the gitlab_issue database.');
+  console.log(`Connected to ${db_host}.`);
 });
 
 app.use(express.json());
