@@ -19,6 +19,7 @@
   "homepage": "https://github.com/souvik-pl/basicCRUDops_NodeJs_sqlite#readme",
   "dependencies": {
     "cors": "^2.8.5",
+    "dotenv": "^16.4.5",
     "express": "^4.17.1",
     "sqlite3": "^5.0.0"
   }
