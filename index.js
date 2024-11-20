@@ -1,12 +1,13 @@
 const express = require('express');
 const sqlite3 = require('sqlite3').verbose();
 const cors = require('cors')
-
+require('dotenv').config()
 const app = express();
 app.use(cors())
 const port = process.env.PORT || 3000;
+const db_host = process.env.database_host || 'D:\source\SGA\Product\Selenium_gitlab_automation\gitlab_issue.db';
 
-const db = new sqlite3.Database('./database/gitlab_issue.db', (err) => {
+const db = new sqlite3.Database(db_host, (err) => {
   if (err) {
     console.error(err.message);
   }
@@ -19,7 +20,9 @@ app.use(express.json());
 app.get('/', (req, res) => {
   res.statusCode = 200;
   res.setHeader('Content-Type', 'text/plain');
-  res.end('Hello, World!\n');  
+  res.end(`Hello, World!\n
+  PORT: ${process.env.PORT}
+  `);  
 });
 
 // GET all issues
