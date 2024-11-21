@@ -1,13 +1,15 @@
 const express = require('express');
 const sqlite3 = require('sqlite3').verbose();
-require('dotenv').config()
 const cors = require('cors')
-
+require('dotenv').config()
 const app = express();
 app.use(cors())
+var path = require('path')
+
+// console.log('>>>', process.env.database_HOST, process.env.NODE_ENV, process.env.server_PORT );
 
 const port = process.env.server_PORT || 3000;
-const db_host = process.env.database_host || './database/gitlab_issue.db';
+const db_host = process.env.database_HOST || `D:/source/SGA/Product.Selenium_gitlab_automation/gitlab_issue.db`;
 
 const db = new sqlite3.Database(db_host, (err) => {
   if (err) {
@@ -44,8 +46,48 @@ app.get('/issues', (req, res) => {
 // GET issues by issue number
 app.get('/issues/:issue', (req, res) => {
   const { issue } = req.params;
-  
+
   db.all('SELECT * FROM ISSUE WHERE issue_number = ?', [issue], (err, row) => {
+    if (err) {
+      console.error(err.message);
+      res.status(500).send('Internal server error');
+    } else if (!row) {
+      res.status(404).send('Issue not found');
+    } else {
+      res.send(row);
+    }
+  });
+});
+
+// GET issues by status
+app.post('/issues/status', (req, res) => {
+  const {
+    status: issue_state
+  } = req.body;
+  let sql = `SELECT * FROM ISSUE WHERE test_state = '${issue_state}'`;
+  
+  db.all(sql, (err, row) => {
+    if (err) {
+      console.error(err.message);
+      res.status(500).send('Internal server error');
+    } else if (!row) {
+      res.status(404).send('Issue not found');
+    } else {
+      res.send(row);
+    }
+  });
+});
+
+// GET issues by status and number
+app.post('/issues', (req, res) => {
+  const {
+    issue_number: issue_number,
+    status: issue_state
+  } = req.body;
+  
+  let sql = `SELECT * FROM ISSUE WHERE test_state = '${issue_state}' and issue_number = '${issue_number}' `;
+  
+  db.all(sql, (err, row) => {
     if (err) {
       console.error(err.message);
       res.status(500).send('Internal server error');
@@ -79,7 +121,7 @@ app.post('/issues', (req, res) => {
     res.status(400).send('Name and price are required');
   } else {
     const sql = 'INSERT INTO ISSUE(name, price) VALUES (?, ?)';
-    db.run(sql, [name, price], function(err) {
+    db.run(sql, [name, price], function (err) {
       if (err) {
         console.error(err.message);
         res.status(500).send('Internal server error');
@@ -99,7 +141,7 @@ app.put('/issues/:id', (req, res) => {
     res.status(400).send('Status is required');
   } else {
     const sql = 'UPDATE ISSUE SET test_state = ? WHERE id = ?';
-    db.run(sql, [issue_state, id], function(err) {
+    db.run(sql, [issue_state, id], function (err) {
       if (err) {
         console.error(err.message);
         res.status(500).send('Internal server error');
@@ -115,7 +157,7 @@ app.put('/issues/:id', (req, res) => {
 // DELETE issue by ID
 app.delete('/issues/:id', (req, res) => {
   const { id } = req.params;
-  db.run('DELETE FROM ISSUE WHERE id = ?', [id], function(err) {
+  db.run('DELETE FROM ISSUE WHERE id = ?', [id], function (err) {
     if (err) {
       console.error(err.message);
       res.status(500).send('Internal server error');
