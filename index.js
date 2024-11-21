@@ -78,6 +78,27 @@ app.post('/issues/status', (req, res) => {
   });
 });
 
+// GET issues by status and number
+app.post('/issues', (req, res) => {
+  const {
+    issue_number: issue_number,
+    status: issue_state
+  } = req.body;
+  
+  let sql = `SELECT * FROM ISSUE WHERE test_state = '${issue_state}' and issue_number = '${issue_number}' `;
+  
+  db.all(sql, (err, row) => {
+    if (err) {
+      console.error(err.message);
+      res.status(500).send('Internal server error');
+    } else if (!row) {
+      res.status(404).send('Issue not found');
+    } else {
+      res.send(row);
+    }
+  });
+});
+
 // GET single issue by ID
 app.get('/issues/:id', (req, res) => {
   const { id } = req.params;
