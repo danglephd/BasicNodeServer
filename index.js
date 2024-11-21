@@ -4,9 +4,12 @@ const cors = require('cors')
 require('dotenv').config()
 const app = express();
 app.use(cors())
+var path = require('path')
+
+// console.log('>>>', process.env.database_HOST, process.env.NODE_ENV, process.env.server_PORT );
 
 const port = process.env.server_PORT || 3000;
-const db_host = process.env.database_host || 'D:\source\SGA\Product\Selenium_gitlab_automation\gitlab_issue.db';
+const db_host = process.env.database_HOST || `D:/source/SGA/Product.Selenium_gitlab_automation/gitlab_issue.db`;
 
 const db = new sqlite3.Database(db_host, (err) => {
   if (err) {
@@ -61,7 +64,7 @@ app.post('/issues/status', (req, res) => {
   const {
     status: issue_state
   } = req.body;
-  let sql = `SELECT * FROM ISSUE WHERE test_status = ${issue_state}`;
+  let sql = `SELECT * FROM ISSUE WHERE test_state = '${issue_state}'`;
   
   db.all(sql, (err, row) => {
     if (err) {
