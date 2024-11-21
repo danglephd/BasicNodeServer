@@ -22,7 +22,7 @@ app.get('/', (req, res) => {
   res.setHeader('Content-Type', 'text/plain');
   res.end(`Hello, World!\n
   PORT: ${process.env.PORT}
-  `);  
+  `);
 });
 
 // GET all issues
@@ -40,8 +40,27 @@ app.get('/issues', (req, res) => {
 // GET issues by issue number
 app.get('/issues/:issue', (req, res) => {
   const { issue } = req.params;
-  
+
   db.all('SELECT * FROM ISSUE WHERE issue_number = ?', [issue], (err, row) => {
+    if (err) {
+      console.error(err.message);
+      res.status(500).send('Internal server error');
+    } else if (!row) {
+      res.status(404).send('Issue not found');
+    } else {
+      res.send(row);
+    }
+  });
+});
+
+// GET issues by status
+app.post('/issues/status', (req, res) => {
+  const {
+    status: issue_state
+  } = req.body;
+  let sql = `SELECT * FROM ISSUE WHERE test_status = ${issue_state}`;
+  
+  db.all(sql, (err, row) => {
     if (err) {
       console.error(err.message);
       res.status(500).send('Internal server error');
@@ -75,7 +94,7 @@ app.post('/issues', (req, res) => {
     res.status(400).send('Name and price are required');
   } else {
     const sql = 'INSERT INTO ISSUE(name, price) VALUES (?, ?)';
-    db.run(sql, [name, price], function(err) {
+    db.run(sql, [name, price], function (err) {
       if (err) {
         console.error(err.message);
         res.status(500).send('Internal server error');
@@ -95,7 +114,7 @@ app.put('/issues/:id', (req, res) => {
     res.status(400).send('Status is required');
   } else {
     const sql = 'UPDATE ISSUE SET test_state = ? WHERE id = ?';
-    db.run(sql, [issue_state, id], function(err) {
+    db.run(sql, [issue_state, id], function (err) {
       if (err) {
         console.error(err.message);
         res.status(500).send('Internal server error');
@@ -111,7 +130,7 @@ app.put('/issues/:id', (req, res) => {
 // DELETE issue by ID
 app.delete('/issues/:id', (req, res) => {
   const { id } = req.params;
-  db.run('DELETE FROM ISSUE WHERE id = ?', [id], function(err) {
+  db.run('DELETE FROM ISSUE WHERE id = ?', [id], function (err) {
     if (err) {
       console.error(err.message);
       res.status(500).send('Internal server error');
