@@ -5,13 +5,15 @@ require('dotenv').config()
 const app = express();
 app.use(cors())
 const port = process.env.PORT || 3000;
-const db_host = process.env.database_host || 'D:\source\SGA\Product\Selenium_gitlab_automation\gitlab_issue.db';
+const db_host = process.env.database_HOST || './database/gitlab_issue.db';
 
 const db = new sqlite3.Database(db_host, (err) => {
   if (err) {
     console.error(err.message);
+    console.error(db_host);
+    return
   }
-  console.log('Connected to the gitlab_issue database.');
+  console.log(`Connected to ${db_host}.`);
 });
 
 app.use(express.json());
@@ -21,8 +23,8 @@ app.get('/', (req, res) => {
   res.statusCode = 200;
   res.setHeader('Content-Type', 'text/plain');
   res.end(`Hello, World!\n
-  PORT: ${process.env.PORT}
-  `);
+  ${db_host}
+  `);  
 });
 
 // GET all issues
@@ -58,7 +60,28 @@ app.post('/issues/status', (req, res) => {
   const {
     status: issue_state
   } = req.body;
-  let sql = `SELECT * FROM ISSUE WHERE test_status = ${issue_state}`;
+  let sql = `SELECT * FROM ISSUE WHERE test_state = '${issue_state}'`;
+  
+  db.all(sql, (err, row) => {
+    if (err) {
+      console.error(err.message);
+      res.status(500).send('Internal server error');
+    } else if (!row) {
+      res.status(404).send('Issue not found');
+    } else {
+      res.send(row);
+    }
+  });
+});
+
+// GET issues by status and number
+app.post('/issues', (req, res) => {
+  const {
+    issue_number: issue_number,
+    status: issue_state
+  } = req.body;
+  
+  let sql = `SELECT * FROM ISSUE WHERE test_state = '${issue_state}' and issue_number = '${issue_number}' `;
   
   db.all(sql, (err, row) => {
     if (err) {
