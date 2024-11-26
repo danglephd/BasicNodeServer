@@ -4,12 +4,8 @@ const cors = require('cors')
 require('dotenv').config()
 const app = express();
 app.use(cors())
-var path = require('path')
-
-// console.log('>>>', process.env.database_HOST, process.env.NODE_ENV, process.env.server_PORT );
-
-const port = process.env.server_PORT || 3000;
-const db_host = process.env.database_HOST || `D:/source/SGA/Product.Selenium_gitlab_automation/gitlab_issue.db`;
+const port = process.env.PORT || 3000;
+const db_host = process.env.database_HOST || './database/gitlab_issue.db';
 
 const db = new sqlite3.Database(db_host, (err) => {
   if (err) {
