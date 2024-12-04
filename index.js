@@ -64,7 +64,7 @@ app.get('/issues/:issue', (req, res) => {
     } else if (!row) {
       res.status(404).send('Issue not found');
     } else {
-      res.send(rows.sort(sortByTime));
+      res.send(rows);
     }
   });
 });
@@ -76,11 +76,11 @@ app.post('/issues/status', (req, res) => {
   } = req.body;
   let sql = `SELECT * FROM ISSUE WHERE test_state = '${issue_state}'`;
   
-  db.all(sql, (err, row) => {
+  db.all(sql, (err, rows) => {
     if (err) {
       console.error(err.message);
       res.status(500).send('Internal server error');
-    } else if (!row) {
+    } else if (!rows) {
       res.status(404).send('Issue not found');
     } else {
       res.send(rows.sort(sortByTime));
@@ -97,11 +97,11 @@ app.post('/issues', (req, res) => {
   
   let sql = `SELECT * FROM ISSUE WHERE test_state = '${issue_state}' and issue_number = '${issue_number}' `;
   
-  db.all(sql, (err, row) => {
+  db.all(sql, (err, rows) => {
     if (err) {
       console.error(err.message);
       res.status(500).send('Internal server error');
-    } else if (!row) {
+    } else if (!rows) {
       res.status(404).send('Issue not found');
     } else {
       res.send(rows.sort(sortByTime));
