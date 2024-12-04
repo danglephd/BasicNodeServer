@@ -39,7 +39,6 @@ app.get('/', (req, res) => {
   res.end(`Hello, World!\n
   ${db_host}
   `);
-
 });
 
 // GET all issues
