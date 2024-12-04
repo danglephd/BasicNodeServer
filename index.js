@@ -64,7 +64,7 @@ app.get('/issues/:issue', (req, res) => {
     } else if (!row) {
       res.status(404).send('Issue not found');
     } else {
-      res.send(rows);
+      res.send(row);
     }
   });
 });
@@ -105,21 +105,6 @@ app.post('/issues', (req, res) => {
       res.status(404).send('Issue not found');
     } else {
       res.send(rows.sort(sortByTime));
-    }
-  });
-});
-
-// GET single issue by ID
-app.get('/issues/:id', (req, res) => {
-  const { id } = req.params;
-  db.get('SELECT * FROM ISSUE WHERE id = ?', [id], (err, row) => {
-    if (err) {
-      console.error(err.message);
-      res.status(500).send('Internal server error');
-    } else if (!row) {
-      res.status(404).send('Issue not found');
-    } else {
-      res.send(row);
     }
   });
 });
