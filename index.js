@@ -19,8 +19,16 @@ const db = new sqlite3.Database(db_host, (err) => {
 app.use(express.json());
 
 function sortByTime(a, b) {
-  const valueA = Date.parse(a.duedate);
-  const valueB = Date.parse(b.duedate);
+  if(a.duedate === " " || a.duedate === ""){
+    return 1;
+  }
+  
+  if(b.duedate === " " || b.duedate === ""){
+    return -1;
+  }
+
+  let valueA = Date.parse(a.duedate);
+  let valueB = Date.parse(b.duedate);
   return (valueA < valueB) ? -1 : (valueA > valueB) ? 1 : 0;
 }
 
@@ -31,16 +39,6 @@ app.get('/', (req, res) => {
   res.end(`Hello, World!\n
   ${db_host}
   `);  
-  // test
-let a ={
-  duedate : "Dec 16, 2024" 
-} 
-let b ={
-  duedate : "Dec 10, 2024" 
-} 
-
-console.log('>>>> a > b: ', sortByTime(a, b));
-
 });
 
 // GET all issues
@@ -50,7 +48,8 @@ app.get('/issues', (req, res) => {
       console.error(err.message);
       res.status(500).send('Internal server error');
     } else {
-      res.send(rows);
+      // res.send(rows);
+      res.send(rows.sort(sortByTime));
     }
   });
 });
