@@ -3,11 +3,55 @@ const sqlite3 = require('sqlite3').verbose();
 const cors = require('cors')
 require('dotenv').config()
 const app = express();
-app.use(cors())
+const { realtimeDb } = require('./config/firebase-config');
+const path = require('path');
+const fs = require('fs');
+
+// Create logs directory if it doesn't exist
+const logDir = path.join(__dirname, 'iisnode');
+if (!fs.existsSync(logDir)) {
+    fs.mkdirSync(logDir, { recursive: true });
+}
+
+// Error handling middleware
+app.use((err, req, res, next) => {
+    console.error('Error:', err.stack);
+    fs.appendFileSync(path.join(logDir, 'app-error.log'), `${new Date().toISOString()} - ${err.stack}\n`);
+    res.status(500).send('Something broke!');
+});
+
+// Request logging middleware
+app.use((req, res, next) => {
+    console.log(`${new Date().toISOString()} - ${req.method} ${req.url}`);
+    next();
+});
+
+app.use(cors());
+app.use(express.json());
+
 const port = process.env.PORT || 3000;
 const db_host = process.env.database_HOST || './database/gitlab_issue.db';
+const default_node = 'issues';
 
-const db = new sqlite3.Database(db_host, (err) => {
+// Serve static files first
+app.use(express.static(path.join(__dirname, 'public'), {
+  setHeaders: (res, filePath) => {
+    if (filePath.endsWith('.js')) {
+      res.set('Content-Type', 'application/javascript; charset=UTF-8');
+    }
+    if (filePath.endsWith('.css')) {
+      res.set('Content-Type', 'text/css; charset=UTF-8');
+    }
+    // Add cache control
+    res.set('Cache-Control', 'public, max-age=31536000');
+  }
+}));
+
+// API Routes
+const apiRouter = express.Router();
+app.use('/api', apiRouter);
+
+const db_sqlite = new sqlite3.Database(db_host, (err) => {
   if (err) {
     console.error(err.message);
     console.error(db_host);
@@ -16,7 +60,13 @@ const db = new sqlite3.Database(db_host, (err) => {
   console.log(`Connected to ${db_host}.`);
 });
 
-app.use(express.json());
+// Thêm middleware để set Content-Type cho các file JavaScript module
+app.use((req, res, next) => {
+  if (req.url.endsWith('.js')) {
+    res.type('application/javascript');
+  }
+  next();
+});
 
 function sortByTime(a, b) {
   if(a.duedate === " " || a.duedate === ""){
@@ -42,124 +92,194 @@ app.get('/', (req, res) => {
 });
 
 // GET all issues
-app.get('/issues', (req, res) => {
-  db.all('SELECT * FROM ISSUE', (err, rows) => {
-    if (err) {
-      console.error(err.message);
-      res.status(500).send('Internal server error');
-    } else {
-      res.send(rows.sort(sortByTime));
+apiRouter.get('/issues', async (req, res) => {
+  try {
+    const node = default_node;
+    
+    // Lấy dữ liệu từ Realtime Database
+    const snapshot = await realtimeDb.ref(node).once('value');
+    const allIssues = snapshot.val();
+    
+    // Chuyển đổi dữ liệu thành mảng và thêm id
+    const issues = [];
+    if (allIssues) {
+      Object.keys(allIssues).forEach(key => {
+        issues.push({ id: key, ...allIssues[key] });
+      });
     }
-  });
+    
+    // Sắp xếp theo thời gian
+    res.send(issues.sort(sortByTime));
+  } catch (error) {
+    console.error('Error:', error);
+    res.status(500).send('Internal server error');
+  }
 });
 
 // GET issues by issue number
-app.get('/issues/:issue', (req, res) => {
-  const { issue } = req.params;
-
-  db.all('SELECT * FROM ISSUE WHERE issue_number = ?', [issue], (err, row) => {
-    if (err) {
-      console.error(err.message);
-      res.status(500).send('Internal server error');
-    } else if (!row) {
-      res.status(404).send('Issue not found');
-    } else {
-      res.send(row);
+apiRouter.get('/issues/:issue', async (req, res) => {
+  try {
+    const { issue } = req.params;
+    const node = default_node;
+    
+    // Lấy dữ liệu từ Realtime Database
+    const snapshot = await realtimeDb.ref(node).once('value');
+    const allIssues = snapshot.val();
+    
+    // Tìm tất cả issues có cùng issue_number
+    const foundIssues = [];
+    if (allIssues) {
+      // Duyệt qua tất cả các issues để tìm các issues có issue_number tương ứng
+      Object.keys(allIssues).forEach(key => {
+        if (allIssues[key].issue_number === issue) {
+          foundIssues.push({ id: key, ...allIssues[key] });
+        }
+      });
     }
-  });
+    
+    if (foundIssues.length === 0) {
+      res.status(404).send('No issues found with this issue number');
+    } else {
+      res.send(foundIssues);
+    }
+  } catch (error) {
+    console.error('Error:', error);
+    res.status(500).send('Internal server error');
+  }
 });
 
 // GET issues by status
-app.post('/issues/status', (req, res) => {
-  const {
-    status: issue_state
-  } = req.body;
-  let sql = `SELECT * FROM ISSUE WHERE test_state = '${issue_state}'`;
-  
-  db.all(sql, (err, rows) => {
-    if (err) {
-      console.error(err.message);
-      res.status(500).send('Internal server error');
-    } else if (!rows) {
-      res.status(404).send('Issue not found');
-    } else {
-      res.send(rows.sort(sortByTime));
+apiRouter.post('/issues/status', async (req, res) => {
+  try {
+    const { status: issue_state } = req.body;
+    const node = default_node;
+    
+    // Lấy dữ liệu từ Realtime Database
+    const snapshot = await realtimeDb.ref(node).once('value');
+    const allIssues = snapshot.val();
+    
+    // Tìm tất cả issues có cùng status
+    const foundIssues = [];
+    if (allIssues) {
+      // Duyệt qua tất cả các issues để tìm các issues có status tương ứng
+      Object.keys(allIssues).forEach(key => {
+        if (allIssues[key].test_state === issue_state) {
+          foundIssues.push({ id: key, ...allIssues[key] });
+        }
+      });
     }
-  });
+    
+    if (foundIssues.length === 0) {
+      res.status(404).send('No issues found with this status');
+    } else {
+      res.send(foundIssues.sort(sortByTime));
+    }
+  } catch (error) {
+    console.error('Error:', error);
+    res.status(500).send('Internal server error');
+  }
 });
 
 // GET issues by status and number
-app.post('/issues', (req, res) => {
-  const {
-    issue_number: issue_number,
-    status: issue_state
-  } = req.body;
-  
-  let sql = `SELECT * FROM ISSUE WHERE test_state = '${issue_state}' and issue_number = '${issue_number}' `;
-  
-  db.all(sql, (err, rows) => {
-    if (err) {
-      console.error(err.message);
-      res.status(500).send('Internal server error');
-    } else if (!rows) {
-      res.status(404).send('Issue not found');
-    } else {
-      res.send(rows.sort(sortByTime));
+apiRouter.post('/issues/search', async (req, res) => {
+  try {
+    const {
+      issue_number,
+      status: issue_state
+    } = req.body;
+    
+    const node = default_node;
+    
+    // Lấy dữ liệu từ Realtime Database
+    const snapshot = await realtimeDb.ref(node).once('value');
+    const allIssues = snapshot.val();
+    
+    // Tìm tất cả issues có cùng status và issue_number
+    const foundIssues = [];
+    if (allIssues) {
+      // Duyệt qua tất cả các issues để tìm các issues có status và issue_number tương ứng
+      Object.keys(allIssues).forEach(key => {
+        if (allIssues[key].test_state === issue_state && allIssues[key].issue_number === issue_number) {
+          foundIssues.push({ id: key, ...allIssues[key] });
+        }
+      });
     }
-  });
-});
-
-// POST new issue
-app.post('/issues', (req, res) => {
-  const { name, price } = req.body;
-  if (!name || !price) {
-    res.status(400).send('Name and price are required');
-  } else {
-    const sql = 'INSERT INTO ISSUE(name, price) VALUES (?, ?)';
-    db.run(sql, [name, price], function (err) {
-      if (err) {
-        console.error(err.message);
-        res.status(500).send('Internal server error');
-      } else {
-        const id = this.lastID;
-        res.status(201).send({ id, name, price });
-      }
-    });
+    
+    if (foundIssues.length === 0) {
+      res.status(404).send('No issues found with this status and issue number');
+    } else {
+      res.send(foundIssues.sort(sortByTime));
+    }
+  } catch (error) {
+    console.error('Error:', error);
+    res.status(500).send('Internal server error');
   }
 });
 
 // PUT update issue by ID
-app.put('/issues/:id', (req, res) => {
-  const { id } = req.params;
-  const { status: issue_state } = req.body;
-  if (!issue_state) {
-    res.status(400).send('Status is required');
-  } else {
-    const sql = 'UPDATE ISSUE SET test_state = ? WHERE id = ?';
-    db.run(sql, [issue_state, id], function (err) {
-      if (err) {
-        console.error(err.message);
-        res.status(500).send('Internal server error');
-      } else if (this.changes === 0) {
-        res.status(404).send('Issue not found');
-      } else {
-        res.status(200).send({ id, status: issue_state });
-      }
+apiRouter.put('/issues/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { status: issue_state } = req.body;
+    
+    if (!issue_state) {
+      res.status(400).send('Status is required');
+      return;
+    }
+    
+    const node = default_node;
+    
+    // Kiểm tra xem issue có tồn tại không
+    const snapshot = await realtimeDb.ref(`${node}/${id}`).once('value');
+    const issue = snapshot.val();
+    
+    if (!issue) {
+      res.status(404).send('Issue not found');
+      return;
+    }
+    
+    // Cập nhật status của issue
+    await realtimeDb.ref(`${node}/${id}`).update({
+      test_state: issue_state
     });
+    
+    res.status(200).send({ id, status: issue_state });
+  } catch (error) {
+    console.error('Error:', error);
+    res.status(500).send('Internal server error');
   }
 });
 
 // DELETE issue by ID
-app.delete('/issues/:id', (req, res) => {
-  const { id } = req.params;
-  db.run('DELETE FROM ISSUE WHERE id = ?', [id], function (err) {
-    if (err) {
-      console.error(err.message);
-      res.status(500).send('Internal server error');
-    } else if (this.changes === 0) {
+apiRouter.delete('/issues/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const node = default_node;
+    
+    // Kiểm tra xem issue có tồn tại không
+    const snapshot = await realtimeDb.ref(`${node}/${id}`).once('value');
+    const issue = snapshot.val();
+    
+    if (!issue) {
       res.status(404).send('Issue not found');
-    } else {
-      res.status(204).send();
+      return;
+    }
+    
+    // Xóa issue
+    await realtimeDb.ref(`${node}/${id}`).remove();
+    
+    res.status(204).send();
+  } catch (error) {
+    console.error('Error:', error);
+    res.status(500).send('Internal server error');
+  }
+});
+
+// Always return the main index.html for any other route
+app.get('*', function(req, res) {
+  res.sendFile(path.join(__dirname, 'public/index.html'), {
+    headers: {
+      'Content-Type': 'text/html; charset=UTF-8'
     }
   });
 });

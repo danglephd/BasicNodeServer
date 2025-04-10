@@ -129,3 +129,6 @@ dist
 .yarn/install-state.gz
 .pnp.*
 /iisnode
+/yarn.lock
+/config/firebase-config.js
+/config/serviceAccountKey.json
