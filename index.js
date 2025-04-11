@@ -1,5 +1,4 @@
 const express = require('express');
-const sqlite3 = require('sqlite3').verbose();
 const cors = require('cors')
 require('dotenv').config()
 const app = express();
@@ -7,18 +6,8 @@ const { realtimeDb } = require('./config/firebase-config');
 
 app.use(cors())
 const port = process.env.PORT || 3000;
-const db_host = process.env.database_HOST || './database/gitlab_issue.db';
 
 const default_node = 'issues';
-
-const db_sqlite = new sqlite3.Database(db_host, (err) => {
-  if (err) {
-    console.error(err.message);
-    console.error(db_host);
-    return
-  }
-  console.log(`Connected to ${db_host}.`);
-});
 
 app.use(express.json());
 
@@ -40,9 +29,7 @@ function sortByTime(a, b) {
 app.get('/', (req, res) => {
   res.statusCode = 200;
   res.setHeader('Content-Type', 'text/plain');
-  res.end(`Hello, World!\n
-  ${db_host}
-  `);
+  res.end('Hello, World!');
 });
 
 // GET all issues
