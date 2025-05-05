@@ -1,10 +1,15 @@
-const express = require('express');
-const cors = require('cors')
-require('dotenv').config()
-const app = express();
-const { realtimeDb } = require('./config/firebase-config');
+import express from 'express';
+import cors from 'cors';
+import dotenv from 'dotenv';
+import { initializeFirebase, getDatabase } from './config/firebase-config.js';
+import { ref, get, set, update, remove } from 'firebase/database';
 
-app.use(cors())
+dotenv.config();
+const app = express();
+const firebaseApp = initializeFirebase(); // Lấy Firebase App
+const realtimeDb = getDatabase(firebaseApp); // Lấy Realtime Database từ Firebase App
+
+app.use(cors());
 const port = process.env.PORT || 3000;
 
 const default_node = 'issues';
@@ -12,17 +17,17 @@ const default_node = 'issues';
 app.use(express.json());
 
 function sortByTime(a, b) {
-  if(a.duedate === " " || a.duedate === ""){
+  if (a.duedate === " " || a.duedate === "") {
     return 1;
   }
-  
-  if(b.duedate === " " || b.duedate === ""){
+
+  if (b.duedate === " " || b.duedate === "") {
     return -1;
   }
 
   let valueA = Date.parse(a.duedate);
   let valueB = Date.parse(b.duedate);
-  return (valueA < valueB) ? -1 : (valueA > valueB) ? 1 : 0;
+  return valueA < valueB ? -1 : valueA > valueB ? 1 : 0;
 }
 
 // Welcome
@@ -35,21 +40,17 @@ app.get('/', (req, res) => {
 // GET all issues
 app.get('/issues', async (req, res) => {
   try {
-    const node = default_node;
-    
-    // Lấy dữ liệu từ Realtime Database
-    const snapshot = await realtimeDb.ref(node).once('value');
+    const nodeRef = ref(realtimeDb, default_node);
+    const snapshot = await get(nodeRef);
     const allIssues = snapshot.val();
-    
-    // Chuyển đổi dữ liệu thành mảng và thêm id
+
     const issues = [];
     if (allIssues) {
       Object.keys(allIssues).forEach(key => {
         issues.push({ id: key, ...allIssues[key] });
       });
     }
-    
-    // Sắp xếp theo thời gian
+
     res.send(issues.sort(sortByTime));
   } catch (error) {
     console.error('Error:', error);
@@ -61,23 +62,19 @@ app.get('/issues', async (req, res) => {
 app.get('/issues/:issue', async (req, res) => {
   try {
     const { issue } = req.params;
-    const node = default_node;
-    
-    // Lấy dữ liệu từ Realtime Database
-    const snapshot = await realtimeDb.ref(node).once('value');
+    const nodeRef = ref(realtimeDb, default_node);
+    const snapshot = await get(nodeRef);
     const allIssues = snapshot.val();
-    
-    // Tìm tất cả issues có cùng issue_number
+
     const foundIssues = [];
     if (allIssues) {
-      // Duyệt qua tất cả các issues để tìm các issues có issue_number tương ứng
       Object.keys(allIssues).forEach(key => {
         if (allIssues[key].issue_number === issue) {
           foundIssues.push({ id: key, ...allIssues[key] });
         }
       });
     }
-    
+
     if (foundIssues.length === 0) {
       res.status(404).send('No issues found with this issue number');
     } else {
@@ -93,23 +90,19 @@ app.get('/issues/:issue', async (req, res) => {
 app.post('/issues/status', async (req, res) => {
   try {
     const { status: issue_state } = req.body;
-    const node = default_node;
-    
-    // Lấy dữ liệu từ Realtime Database
-    const snapshot = await realtimeDb.ref(node).once('value');
+    const nodeRef = ref(realtimeDb, default_node);
+    const snapshot = await get(nodeRef);
     const allIssues = snapshot.val();
-    
-    // Tìm tất cả issues có cùng status
+
     const foundIssues = [];
     if (allIssues) {
-      // Duyệt qua tất cả các issues để tìm các issues có status tương ứng
       Object.keys(allIssues).forEach(key => {
         if (allIssues[key].test_state === issue_state) {
           foundIssues.push({ id: key, ...allIssues[key] });
         }
       });
     }
-    
+
     if (foundIssues.length === 0) {
       res.status(404).send('No issues found with this status');
     } else {
@@ -128,24 +121,20 @@ app.post('/issues', async (req, res) => {
       issue_number: issue_number,
       status: issue_state
     } = req.body;
-    
-    const node = default_node;
-    
-    // Lấy dữ liệu từ Realtime Database
-    const snapshot = await realtimeDb.ref(node).once('value');
+
+    const nodeRef = ref(realtimeDb, default_node);
+    const snapshot = await get(nodeRef);
     const allIssues = snapshot.val();
-    
-    // Tìm tất cả issues có cùng status và issue_number
+
     const foundIssues = [];
     if (allIssues) {
-      // Duyệt qua tất cả các issues để tìm các issues có status và issue_number tương ứng
       Object.keys(allIssues).forEach(key => {
         if (allIssues[key].test_state === issue_state && allIssues[key].issue_number === issue_number) {
           foundIssues.push({ id: key, ...allIssues[key] });
         }
       });
     }
-    
+
     if (foundIssues.length === 0) {
       res.status(404).send('No issues found with this status and issue number');
     } else {
@@ -162,28 +151,25 @@ app.put('/issues/:id', async (req, res) => {
   try {
     const { id } = req.params;
     const { status: issue_state } = req.body;
-    
+
     if (!issue_state) {
       res.status(400).send('Status is required');
       return;
     }
-    
-    const node = default_node;
-    
-    // Kiểm tra xem issue có tồn tại không
-    const snapshot = await realtimeDb.ref(`${node}/${id}`).once('value');
+
+    const nodeRef = ref(realtimeDb, `${default_node}/${id}`);
+    const snapshot = await get(nodeRef);
     const issue = snapshot.val();
-    
+
     if (!issue) {
       res.status(404).send('Issue not found');
       return;
     }
-    
-    // Cập nhật status của issue
-    await realtimeDb.ref(`${node}/${id}`).update({
+
+    await update(nodeRef, {
       test_state: issue_state
     });
-    
+
     res.status(200).send({ id, status: issue_state });
   } catch (error) {
     console.error('Error:', error);
@@ -195,20 +181,17 @@ app.put('/issues/:id', async (req, res) => {
 app.delete('/issues/:id', async (req, res) => {
   try {
     const { id } = req.params;
-    const node = default_node;
-    
-    // Kiểm tra xem issue có tồn tại không
-    const snapshot = await realtimeDb.ref(`${node}/${id}`).once('value');
+    const nodeRef = ref(realtimeDb, `${default_node}/${id}`);
+    const snapshot = await get(nodeRef);
     const issue = snapshot.val();
-    
+
     if (!issue) {
       res.status(404).send('Issue not found');
       return;
     }
-    
-    // Xóa issue
-    await realtimeDb.ref(`${node}/${id}`).remove();
-    
+
+    await remove(nodeRef);
+
     res.status(204).send();
   } catch (error) {
     console.error('Error:', error);
@@ -218,5 +201,5 @@ app.delete('/issues/:id', async (req, res) => {
 
 // Start the server
 app.listen(port, () => {
-  console.log(`Server listening on port ${port}.`);
+  console.log(`Server is running on port ${port}`);
 });
